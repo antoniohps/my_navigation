@@ -17,7 +17,7 @@ robot = Particle(largura/2, altura/2, math.pi/4, 1.0)
 # Nuvem de particulas
 #particulas = []
 
-num_particulas = 1000
+num_particulas = 1500
 
 # Os angulos em que o robo simulado vai ter sensores
 angles = np.linspace(0.0, 2*math.pi, num=8, endpoint=False)
