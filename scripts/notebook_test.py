@@ -7,7 +7,7 @@ import sys
 if (sys.version_info > (3, 0)): 
     # Modo Python 3
     import importlib
-    import projeto_pf # Seu trabalho fica em projeto_pf. Você não deveria precisar editar este notebook
+    import projeto_pf2 # Seu trabalho fica em projeto_pf. Você não deveria precisar editar este notebook
     importlib.reload(projeto_pf2) # Para garantir que o Jupyter sempre relê seu trabalho
 else:
     # Modo Python 2
@@ -17,7 +17,7 @@ else:
     reload(projeto_pf2)
 
 import inspercles
-import graphics_nb
+# import graphics_nb
 
 import matplotlib.pyplot as plt
 import os
@@ -32,6 +32,7 @@ from projeto_pf2 import movimentos
 particulas = projeto_pf2.cria_particulas()
 len(particulas)
 leituras = inspercles.nb_lidar(robot, angles)
+print(leituras)
 
 #In[3]
 # Você não deve se preocupar com o código abaixo - é só para gerar uma imagem que será mostrada mais adiante

@@ -1,4 +1,5 @@
-# coding: utf-8
+# -*- coding: UTF-8 -*-
+import os
 from random import randint, choice
 import time
 import matplotlib.pyplot as plt
@@ -7,28 +8,17 @@ import numpy as np
 import math
 import random
 from pf import Particle
-import rayline
+import intersection.rayline as rayline
 import cv2
 from intersection.intersection import find_intersections
 from intersection.segment import Segment
-from occupancy_field_numpy import OccupancyField
+from map.occupancy_grid import OccupancyGrid
 from time import time
 
-
+'''
 initial_pose = []
 
-particle_size = 7
-
-lines = None
-
-occupied_thresh = 0.2
-free_thresh = 0.9
-
-robot_radius = 10
-
-width = 775
-
-height = 746
+# For the occupancy field map
 
 back_color = "black"
 colors     = ['red', 'green', 'cyan', 'yellow']
@@ -43,42 +33,59 @@ occupancy_field = OccupancyField(color_image)
 lidar_map = None
 
 retorno_lidar_robo = np.copy(np_image)
-
+'''
 
 EPS = 1e-8
 
-def canny_lines(img):
+def canny_lines(gridmap):
     """
         Retorna todos os segmentos de linha contidos numa imagem
     """
-    np_image = img
-    canny = cv2.Canny(np_image, occupied_thresh*255, free_thresh*255)
+    np_image = gridmap.map
+    canny = cv2.Canny(np_image, gridmap._occupied_thresh*255, gridmap._free_thresh*255)
     #kernel = np.ones((5,5), np.uint8)
     #canny = cv2.dilate(canny, kernel, iterations=1)
     linhas = np.array([])
     lines = cv2.HoughLinesP(image=canny,rho=0.02,theta=np.pi/1000, threshold=25,lines=linhas, minLineLength=minLineLength,maxLineGap=3)
     return lines
 
-lines = None
+# Load map and lines
+filedir = os.path.dirname(os.path.abspath(__file__))
+map_name = os.path.normpath(os.path.normpath(filedir+'/../maps/map.yaml'))
 
+# Build the map
+occ_grid = OccupancyGrid(map_name)
 
-map_name = 'sparse_obstacles'
-img = cv2.imread(map_name + '.png')
-with open(map_name + '_lines.txt', 'r') as f:
+# Load line segments
+map_image = occ_grid._mapimage
+ext_idx = map_image.rindex('.')
+map_image = map_image[:ext_idx]
+
+with open(map_image + '_lines.txt', 'r') as f:
     segments = np.array([[float(j) for j in line.split()] for line in f])
 
-minLineLength = img.shape[1]/45
-
-
+minLineLength = occ_grid.width/45
 lines = segments
 
-
 if lines is None:
-    lines = canny_lines(img)
-
+    lines = canny_lines(occ_grid.map)
 
 #print("\t\tLINES:\n")s
 #print(lines)
+
+# Save map attributes
+free_thresh = occ_grid._free_thresh
+occupied_thresh = occ_grid._occupied_thresh
+resolution = occ_grid._resolution
+color_image = occ_grid.color_image
+width = occ_grid.width * resolution # meters
+height = occ_grid.height * resolution # meters
+
+# Graphic features
+imwidth = occ_grid.width
+imheight = occ_grid.height
+particle_size = 7 # pixels
+robot_radius = 10 # pixels
 
 def make_vecs(xs, ys):
     '''
@@ -247,7 +254,7 @@ def nb_draw_map(mapa_numpy, particles = None, initial_position=False, pose=False
         robot - booleano que determina se o robô é desenhado como um círculo ou não
     """
     fig, ax = plt.subplots(figsize=(10,10))
-    ax.set(xlim=[0, width], ylim=[0, height]) # Or use "ax.axis([x0,x1,y0,y1])"
+    ax.set(xlim=[0, imwidth], ylim=[0, imheight]) # Or use "ax.axis([x0,x1,y0,y1])"
 
     fig.canvas.draw()
 
@@ -259,7 +266,7 @@ def nb_draw_map(mapa_numpy, particles = None, initial_position=False, pose=False
     if particles:
         nb_draw_particle_cloud(particles, ax)
     if pose:
-        nb_draw_arrow(pose[0], pose[1], pose[2], ax, color='g', width=2, headwidth=6, headlength=6)
+        nb_draw_arrow(pose[0]/resolution, pose[1]/resolution, pose[2], ax, color='g', width=2, headwidth=6, headlength=6)
     if robot:
         nb_draw_robot(pose, ax, radius=robot_radius)
 
@@ -297,7 +304,7 @@ def nb_draw_particle_cloud(particles, ax):
         ax - eixo
     """
     for p in particles:
-        nb_draw_arrow(p.x, p.y, p.theta, ax, particle_size, color='b')
+        nb_draw_arrow(p.x/resolution, p.y/resolution, p.theta, ax, particle_size, color='b')
 
 def normalize_particles(particle_cloud):
     #
@@ -357,7 +364,7 @@ def nb_draw_robot(position, ax, radius=10):
         Desenha um círculo com uma seta para se passar pelo robô
     """
     from matplotlib.patches import Circle
-    circle = Circle((position[0], position[1]), radius, facecolor='none',
+    circle = Circle((position[0]/resolution, position[1]/resolution), radius, facecolor='none',
                     edgecolor=(0.0, 0.8, 0.2), linewidth=2, alpha=0.7)
     ax.add_patch(circle)
 
@@ -466,8 +473,8 @@ def nb_simulate_lidar(robot_pose, angles, img, retorno = None, output_image=True
         result_img.fill(255) # Deixamos tudo branco
 
 
-    x0 = robot_pose[0]
-    y0 = robot_pose[1]
+    x0 = robot_pose[0]/resolution
+    y0 = robot_pose[1]/resolution
 
     # Se o robô simulado (que pode ser uma partícula) já estiver fora da imagem, retornamos zero
     if nb_outside_image(int(x0), int(y0), img):
@@ -499,7 +506,7 @@ def nb_simulate_lidar(robot_pose, angles, img, retorno = None, output_image=True
             dist = nb_found_obstacle(int(y), int(x), y0, x0, img)
             if dist > -1:
                 # Achamos alguma coisa
-                lidar_results[angulo] = dist
+                lidar_results[angulo] = dist * resolution
                 #print("Hit for ",x,  "  ",y, "  for angle ", ang)
                 break
             # Keep going if none of the "ifs" has been triggered
@@ -558,30 +565,23 @@ def make_directions(particle, angles):
     return normed
 
 
-
-
-def nb_lidar_old(particle, angles):
-    global lidar_map
-    leituras, temp = nb_simulate_lidar_fast(particle.pose(), angles, np_image, output_image=False)
-    return leituras
-
-def nb_lidar(particle, angles, lines = lines, fast=False, occupancy_field=occupancy_field):
+def nb_lidar(particle, angles, lines = lines, fast=False, occupancy_field=None):#occupancy_field):
     directions = make_directions(particle, angles)
     if fast:
         sensor_radius = 5
         sensors = (directions * sensor_radius).astype(np.uint8)
         dists = occupancy_field.closest_occ[sensors[:,0], sensors[:,1]]
-        readings = dict(zip(angles, dists))
+        readings = dict(zip(angles, dists*resolution))
         return readings
     else:
-        origin = (particle.x, particle.y)
+        origin = (particle.x/resolution, particle.y/resolution)
         interpoints = closest_intersections(origin, directions, lines)
         dists = []
         for p in interpoints:
             if p is None:
                 dist = float('inf')
             else:
-                dist = math.sqrt((p[0]-origin[0])**2 + (p[1] - origin[1])**2)
+                dist = math.sqrt((p[0]-origin[0])**2 + (p[1] - origin[1])**2) * resolution
             dists.append(dist)
         readings= dict(zip(angles, dists))
         return readings
@@ -627,11 +627,13 @@ def nb_simulate_lidar_desenha(particle, angles):
     imagem_saida = np.copy(color_image)
 
     for r in angles_result:
-        cv2.line(imagem_saida, (int(particle.x), int(particle.y)), (int(particle.x + math.cos(r+particle.theta)*results[r]), int(particle.y + math.sin(r+particle.theta)*results[r])), (0,0,0),1, lineType=cv2.LINE_AA)
+        cv2.line(imagem_saida, 
+            (int(particle.x/resolution), int(particle.y/resolution)), 
+            (int((particle.x + math.cos(r+particle.theta)*results[r])/resolution), 
+                int((particle.y + math.sin(r+particle.theta)*results[r])/resolution)),
+            (0,0,0),1, lineType=cv2.LINE_AA)
 
     return results, imagem_saida
-
-
 
 
 def nb_simulate_lidar_fast(robot_pose, angles, img, retorno = None, output_image=True):
@@ -649,7 +651,6 @@ def nb_simulate_lidar_fast(robot_pose, angles, img, retorno = None, output_image
     #robot_pose[theta] = angle_normalize(robot_pose[theta])
 
     lidar_results = {}
-
 
     global lines
 
@@ -698,9 +699,5 @@ def nb_simulate_lidar_fast(robot_pose, angles, img, retorno = None, output_image
                 cv2.line(result_img,(int(x0),int(y0)),(int(ponto[0]),int(ponto[1])),(0,0,0),1)
 
     return lidar_results, result_img
-
-
-
-
 
 

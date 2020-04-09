@@ -8,9 +8,8 @@ import numpy as np
 import inspercles # necessário para o a função nb_lidar que simula o laser
 import math
 
-
-largura = 775 # largura do mapa
-altura = 748  # altura do mapa
+largura = inspercles.width  # largura do ambiente
+altura = inspercles.height  # altura do ambiente
 
 # Robo
 robot = Particle(largura/2, altura/2, math.pi/4, 1.0)
@@ -18,43 +17,30 @@ robot = Particle(largura/2, altura/2, math.pi/4, 1.0)
 # Nuvem de particulas
 #particulas = []
 
-num_particulas = 600
+num_particulas = 1000
 
 # Os angulos em que o robo simulado vai ter sensores
 angles = np.linspace(0.0, 2*math.pi, num=8, endpoint=False)
 
-# Lista mais longa
-movimentos_longos = [[-10, -10, 0], [-10, 10, 0], [-10,0,0], [-10, 0, 0],
-              [0,0,math.pi/12.0], [0, 0, math.pi/12.0], [0, 0, math.pi/12],[0,0,-math.pi/4],
-              [-5, 0, 0],[-5,0,0], [-5,0,0], [-10,0,0],[-10,0,0], [-10,0,0],[-10,0,0],[-10,0,0],[-15,0,0],
-              [0,0,-math.pi/4],[0, 10, 0], [0,10,0], [0, 10, 0], [0,10,0], [0,0,math.pi/8], [0,10,0], [0,10,0], 
-              [0,10,0], [0,10,0], [0,10,0],[0,10,0],
-              [0,0,-math.radians(90)],
-              [math.cos(math.pi/3)*10, math.sin(math.pi/3),0],[math.cos(math.pi/3)*10, math.sin(math.pi/3),0],[math.cos(math.pi/3)*10, math.sin(math.pi/3),0],
-              [math.cos(math.pi/3)*10, math.sin(math.pi/3),0]]
+# Lista de movimentos
+ds = 0.1 #passo básico
 
-# Lista curta
-movimentos_curtos = [[-10, -10, 0], [-10, 10, 0], [-10,0,0], [-10, 0, 0]]
-
-movimentos_relativos = [[0, -math.pi/3],[10, 0],[10, 0], [10, 0], [10, 0],[15, 0],[15, 0],[15, 0],[0, -math.pi/2],[10, 0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
+movimentos_relativos = [[0, -math.pi/3],[ds, 0],[ds, 0], [ds, 0], [ds, 0],[ds*3/2, 0],[ds*3/2, 0],[ds*3/2, 0],[0, -math.pi/2],[ds, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
                        [0, -math.pi/2], 
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
                        [0, -math.pi/2], 
-                       [10,0], [0, -math.pi/4], [10,0], [10,0], [10,0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0],
-                       [10,0], [10, 0], [10, 0], [10, 0], [10, 0], [10, 0]]
-
+                       [ds,0], [0, -math.pi/4], [ds,0], [ds,0], [ds,0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
+                       [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0]]
 
 
 movimentos = movimentos_relativos
-
-
 
 def cria_particulas(minx=0, miny=0, maxx=largura, maxy=altura, n_particulas=num_particulas):
     """
@@ -106,7 +92,7 @@ def leituras_laser_evidencias(robot, particulas):
         Você vai precisar calcular para o robo
         
     """
-    sigma = 5 # 5 pixels
+    sigma = 0.005 # m
     leitura_robo = inspercles.nb_lidar(robot, angles)
     
     for p in particulas :
@@ -134,8 +120,8 @@ def reamostrar(particulas, n_particulas = num_particulas):
         
         Use 1/n ou 1, não importa desde que seja a mesma
     """
-    s_x = 10
-    s_y = 10
+    s_x = 0.1 # m
+    s_y = 0.1
     s_th = 0.1
 
     probs = np.array([p.w for p in particulas])
