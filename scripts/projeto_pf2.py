@@ -3,10 +3,11 @@
 Esta classe deve conter todas as suas implementações relevantes para seu filtro de partículas
 """
 
-from pf import Particle, create_particles
 import numpy as np
-import inspercles # necessário para o a função nb_lidar que simula o laser
 import math
+
+import inspercles # necessário para o a função nb_lidar que simula o laser
+from pf import Particle, create_particles
 
 largura = inspercles.width  # largura do ambiente
 altura = inspercles.height  # altura do ambiente
@@ -17,7 +18,7 @@ robot = Particle(largura/2, altura/2, math.pi/4, 1.0)
 # Nuvem de particulas
 #particulas = []
 
-num_particulas = 1500
+num_particulas = 900
 
 # Os angulos em que o robo simulado vai ter sensores
 angles = np.linspace(0.0, 2*math.pi, num=8, endpoint=False)
@@ -66,8 +67,8 @@ def move_particulas(particulas, movimento):
         Você não precisa mover o robô. O código fornecido pelos professores fará isso
         
     """
-    s_u = 0.1 * movimento[0] + 0.00001
-    s_th = 0.1 * movimento[1] + 0.001
+    s_u = 0.1 * movimento[0] + 0.01
+    s_th = 0.1 * movimento[1] + 0.01
     for i in range(len(particulas)):
         p = particulas[i]
         theta = p.theta
@@ -92,7 +93,7 @@ def leituras_laser_evidencias(robot, particulas):
         Você vai precisar calcular para o robo
         
     """
-    sigma = 0.005 # m
+    sigma = 0.01 # m
     leitura_robo = inspercles.nb_lidar(robot, angles)
     
     for p in particulas :
@@ -108,7 +109,7 @@ def leituras_laser_evidencias(robot, particulas):
             likelihood += prob
         p.w = likelihood
     
-    
+
 def reamostrar(particulas, n_particulas = num_particulas):
     """
         Reamostra as partículas devolvendo novas particulas sorteadas
@@ -122,7 +123,7 @@ def reamostrar(particulas, n_particulas = num_particulas):
     """
     s_x = 0.1 # m
     s_y = 0.1
-    s_th = 0.1
+    s_th = 0.3
 
     probs = np.array([p.w for p in particulas])
     probs /= probs.sum()

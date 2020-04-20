@@ -11,7 +11,7 @@
         <collision name="collision">
           <geometry>
             <heightmap>
-              <uri>file://mapheights/textures/heightmap_sparse_obstacles.png</uri>
+              <uri>model://mapheights/textures/heightmap_sparse_obstacles.png</uri>
               <size>13 12.5 2</size>
               <pos>0 0 0</pos>
             </heightmap>
@@ -44,7 +44,7 @@
                 <min_height>4</min_height>
                 <fade_dist>5</fade_dist>
               </blend>
-              <uri>file://mapheights/textures/heightmap_sparse_obstacles.png</uri>
+              <uri>model://mapheights/textures/heightmap_sparse_obstacles.png</uri>
               <size>13 12.5 2</size>
               <pos>0 0 0</pos>
             </heightmap>

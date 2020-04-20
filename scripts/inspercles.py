@@ -1,19 +1,21 @@
 # -*- coding: UTF-8 -*-
 import os
 from random import randint, choice
-import time
+from time import time
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from numba import njit, float64
 import numpy as np
 import math
 import random
+import cv2
+
 from pf import Particle
 import intersection.rayline as rayline
-import cv2
 from intersection.intersection import find_intersections
 from intersection.segment import Segment
 from map.occupancy_grid import OccupancyGrid
-from time import time
+
 
 '''
 initial_pose = []
@@ -87,6 +89,7 @@ imheight = occ_grid.height
 particle_size = 7 # pixels
 robot_radius = 10 # pixels
 
+@njit
 def make_vecs(xs, ys):
     '''
     Creates 2D numpy array from two 1D arrays.
@@ -100,7 +103,7 @@ def make_vecs(xs, ys):
     '''
     return np.hstack((vert(xs), vert(ys)))
 
-
+@njit
 def make_3d_vecs(xs, ys):
     '''
     Creates 3D numpy array from two 2D arrays.
@@ -114,7 +117,7 @@ def make_3d_vecs(xs, ys):
     '''
     return np.dstack((xs, ys))
 
-
+@njit
 def compute_norms(vecs):
     '''
     Compute norm of 2D vectors.
@@ -127,7 +130,7 @@ def compute_norms(vecs):
     '''
     return np.sqrt(vecs[:,0]*vecs[:,0] + vecs[:,1]*vecs[:,1])
 
-
+@njit
 def vert(v):
     '''
     Transform v into vertical array.
@@ -140,7 +143,7 @@ def vert(v):
     '''
     return v.reshape((-1, 1))
 
-
+@njit
 def hor(v):
     '''
     Transform v into horizontal array.
@@ -153,7 +156,7 @@ def hor(v):
     '''
     return v.reshape((1, -1))
 
-
+@njit
 def are_parallel(seg_directs, directions):
     '''
     Checks if seg_directs and directions are parallel.
@@ -168,12 +171,14 @@ def are_parallel(seg_directs, directions):
     '''
     norms = compute_norms(seg_directs)
     seg_directs = seg_directs / make_vecs(norms, norms)
-    dx = hor(directions[:,0])
-    dy = hor(directions[:,1])
-    return (np.abs((vert(seg_directs[:,0])-dx) < EPS) & (np.abs(vert(seg_directs[:,1])-dy) < EPS)) | \
-           (np.abs((vert(seg_directs[:,0])+dx) < EPS) & (np.abs(vert(seg_directs[:,1])+dy) < EPS))
+    dx = hor(np.ravel(directions[:,0]))
+    dy = hor(np.ravel(directions[:,1]))
+    seg_x = np.ravel(seg_directs[:,0])
+    seg_y = np.ravel(seg_directs[:,1])
+    return (np.abs((vert(seg_x)-dx) < EPS) & (np.abs(vert(seg_y)-dy) < EPS)) | \
+           (np.abs((vert(seg_x)+dx) < EPS) & (np.abs(vert(seg_y)+dy) < EPS))
 
-
+@njit((float64[:], float64[:,:], float64[:,:]))
 def compute_intersections(pt, directions, segments):
     '''
     Compute all intersection points in each direction.
@@ -193,15 +198,15 @@ def compute_intersections(pt, directions, segments):
     n = segments.shape[0]
     angles_n = directions.shape[0]
     px, py = pt
-    ctheta = hor(directions[:,0])
-    stheta = hor(directions[:,1])
-    x1, y1, x2, y2 = vert(segments[:, 0]), vert(segments[:, 1]), vert(segments[:, 2]), vert(segments[:, 3])
-    p1 = make_3d_vecs(np.repeat(x1, angles_n, axis=1), np.repeat(y1, angles_n, axis=1))
-    p2 = make_3d_vecs(np.repeat(x2, angles_n, axis=1), np.repeat(y2, angles_n, axis=1))
+    ctheta = hor(np.ravel(directions[:,0]))
+    stheta = hor(np.ravel(directions[:,1]))
+    x1, y1, x2, y2 = vert(np.ravel(segments[:, 0])), vert(np.ravel(segments[:, 1])), vert(np.ravel(segments[:, 2])), vert(np.ravel(segments[:, 3]))
+    p1 = make_3d_vecs(np.repeat(x1, angles_n), np.repeat(y1, angles_n))
+    p2 = make_3d_vecs(np.repeat(x2, angles_n), np.repeat(y2, angles_n))
     denom = (vert(x2 - x1) * stheta + vert(y1 - y2) * ctheta)
     s = (vert(px - x1) * stheta + vert(y1 - py) * ctheta) / denom
     r = (y1 + s * vert(y2 - y1) - py) / stheta
-    use_x = (abs(ctheta) > abs(stheta)).flatten()
+    use_x = (np.fabs(ctheta) > np.fabs(stheta)).flatten()
     r[:,use_x] = ((x1 + s * vert(x2 - x1) - px) / ctheta)[:,use_x]
     intersections = make_3d_vecs(px + r * ctheta, py + r * stheta)
     valid = np.repeat(True, n * angles_n).reshape(n, angles_n)
@@ -216,19 +221,37 @@ def compute_intersections(pt, directions, segments):
     # p1 = pt
     in_p1 = vert(norms_between1 < EPS)
     idx = parallel_directs & in_p1
-    intersections[idx, :] = p1[idx, :]
+    for i in range(idx.shape[0]):
+        for j in range(idx.shape[1]):
+            if idx[i,j]:
+                intersections[i, j, :] = p1[i, j, :]
     # parallel
     not_collinear = (~are_parallel(between1, directions)) & (~in_p1)
-    valid[parallel_directs & not_collinear] = False
+    idx2 = parallel_directs & not_collinear 
+    for i in range(idx2.shape[0]):
+        for j in range(idx2.shape[1]):
+            if idx2[i,j]: valid[i,j] = False
+
     # pt = p1 or pt = p2
     collinear_p1 = (~not_collinear) & vert(norms_between1 < norms_between2)
     collinear_p2 = (~not_collinear) & vert(norms_between1 >= norms_between2)
-    intersections[parallel_directs & collinear_p1,:] = p1[parallel_directs & collinear_p1,:]
-    intersections[parallel_directs & collinear_p2,:] = p2[parallel_directs & collinear_p2,:]
+    
+    idx2 = parallel_directs & collinear_p1
+    for i in range(idx2.shape[0]):
+        for j in range(idx2.shape[1]):
+            if idx2[i,j]: intersections[i,j,:] = p1[i,j,:]
+    idx2 = parallel_directs & collinear_p2
+    for i in range(idx2.shape[0]):
+        for j in range(idx2.shape[1]):
+            if idx2[i,j]: intersections[i,j,:] = p2[i,j,:]
 
     # Check validity
     not_valid = (np.abs(denom) < EPS) | (r < -EPS) | (s < -EPS) | (s > 1+EPS)
-    valid[(~parallel_directs) & not_valid] = False
+    idx2 = (~parallel_directs) & not_valid 
+    
+    for i in range(idx2.shape[0]):
+        for j in range(idx2.shape[1]):
+            if idx2[i,j]: valid[i, j] = False
 
     return valid, intersections
 
@@ -344,6 +367,7 @@ def nb_initialize_particle_cloud(xy_theta=None):
     update_robot_pose(particle_cloud, np.ones(len(particle_cloud)))
     return particle_cloud
 
+@njit
 def nb_create_particles(pose, var_x = 50, var_y = 50, var_theta = math.pi/3, num=30):
     """
         Cria num particulas
@@ -410,8 +434,6 @@ def nb_cria_occupancy_field_image(occupancy_field, numpy_image):
     return occupancy_image
 
 
-
-
 def nb_outside_image(x, y, img):
     if x >= img.shape[1] or x < 0:
         return True
@@ -444,7 +466,7 @@ def nb_find_discrete_line_versor(xa, ya, angle):
     return versor
 
 
-
+@njit
 def nb_simulate_lidar(robot_pose, angles, img, retorno = None, output_image=True):
     """
         Simula a leitura `real` do LIDAR supondo que o robot esteja na robot_pose e com sensores nos angulos angles
@@ -521,8 +543,6 @@ def nb_simulate_lidar(robot_pose, angles, img, retorno = None, output_image=True
 
 
 
-
-
 def intersecao_mais_proxima(ray_origin, ray_direction, lines):
     """
         Dentre as intereseçoes, acha a mais próxima
@@ -587,6 +607,7 @@ def nb_lidar(particle, angles, lines = lines, fast=False, occupancy_field=None):
         return readings
 
 
+@njit
 def closest_intersections(origin, directions, segments):
     '''
     Find closest intersection point in each direction.
@@ -602,6 +623,7 @@ def closest_intersections(origin, directions, segments):
             The element is the closest intersection point in that direction.
             If there is not intersection in that direction, the element is None.
     '''
+    origin = np.array(origin)
     valid, intersections = compute_intersections(origin, directions, segments)
     closest = []
     for i in range(valid.shape[1]):
