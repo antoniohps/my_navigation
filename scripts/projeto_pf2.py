@@ -3,11 +3,13 @@
 Esta classe deve conter todas as suas implementações relevantes para seu filtro de partículas
 """
 
+from __future__ import division, print_function
+
 import numpy as np
 import math
 
 import inspercles # necessário para o a função nb_lidar que simula o laser
-from pf import Particle, create_particles
+from pf import Particle, create_particles, draw_random_sample
 
 largura = inspercles.width  # largura do ambiente
 altura = inspercles.height  # altura do ambiente
@@ -18,13 +20,16 @@ robot = Particle(largura/2, altura/2, math.pi/4, 1.0)
 # Nuvem de particulas
 #particulas = []
 
-num_particulas = 900
+num_particulas = 800
 
 # Os angulos em que o robo simulado vai ter sensores
 angles = np.linspace(0.0, 2*math.pi, num=8, endpoint=False)
 
 # Lista de movimentos
 ds = 0.1 #passo básico
+
+P_ERR = 0.01
+P_INFTY = 1 - P_ERR
 
 movimentos_relativos = [[0, -math.pi/3],[ds, 0],[ds, 0], [ds, 0], [ds, 0],[ds*3/2, 0],[ds*3/2, 0],[ds*3/2, 0],[0, -math.pi/2],[ds, 0],
                        [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
@@ -105,7 +110,12 @@ def leituras_laser_evidencias(robot, particulas):
         for angle in leitura_robo:
             z_real = leitura_robo[angle]
             z_estim = leitura_estimada[angle]
-            prob = math.exp(-((z_real-z_estim)**2)/(2*sigma**2))
+            if math.isinf(z_real) and math.isinf(z_estim):
+                prob = P_INFTY
+            elif math.isinf(z_real) or math.isinf(z_estim):
+                prob = P_ERR
+            else: 
+                prob = 1.0/math.sqrt(2*math.pi)/sigma * math.exp(-((z_real-z_estim)**2)/(2*sigma**2))
             likelihood += prob
         p.w = likelihood
     
@@ -127,19 +137,19 @@ def reamostrar(particulas, n_particulas = num_particulas):
 
     probs = np.array([p.w for p in particulas])
     probs /= probs.sum()
-    print(probs)
+    #print(probs)
 
-    novas_particulas_idx = np.random.choice(n_particulas, size=n_particulas, p=probs)
+    #novas_particulas_idx = np.random.choice(n_particulas, size=n_particulas, p=probs)
+    novas_particulas = draw_random_sample(particulas, probs, len(particulas))
 
-    novas_particulas = []
-    for i in novas_particulas_idx:
-        p = particulas[i]
-        p = Particle(p.x, p.y, p.theta, 1)
+    #novas_particulas = []
+    for i in range(len(novas_particulas)):
+        p = novas_particulas[i]
+        p.w = 1
         p.x += s_x * np.random.normal()
         p.y += s_y * np.random.normal()
         p.theta += s_th * np.random.normal()
-        novas_particulas.append(p)
-
+        
     return novas_particulas   
 
 

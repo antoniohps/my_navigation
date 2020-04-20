@@ -1,4 +1,7 @@
 # -*- coding: UTF-8 -*-
+
+from __future__ import division, print_function
+
 import os
 from random import randint, choice
 from time import time
@@ -15,6 +18,7 @@ import intersection.rayline as rayline
 from intersection.intersection import find_intersections
 from intersection.segment import Segment
 from map.occupancy_grid import OccupancyGrid
+
 
 
 '''
@@ -38,6 +42,7 @@ retorno_lidar_robo = np.copy(np_image)
 '''
 
 EPS = 1e-8
+INFTY = float('inf')
 
 def canny_lines(gridmap):
     """
@@ -414,6 +419,7 @@ def nb_create_ros_map(numpy_image):
     grid.data = image_data
     return grid
 
+@njit
 def nb_interp(min_a, max_a, a, dst_min, dst_max):
     """
         Funcao de interpolacao generica.
@@ -434,19 +440,21 @@ def nb_cria_occupancy_field_image(occupancy_field, numpy_image):
     return occupancy_image
 
 
+@njit
 def nb_outside_image(x, y, img):
     if x >= img.shape[1] or x < 0:
         return True
     if y >= img.shape[0] or y < 0:
         return True
 
+@njit
 def nb_found_obstacle(x, y, x0, y0, img):
     gray_value = 1.0 - img[x][y]/255.0
     if gray_value > free_thresh and gray_value < occupied_thresh:
         return math.sqrt( (x0 - x)**2 + (y0 - y)**2 )
 
 
-
+@njit
 def nb_find_discrete_line_versor(xa, ya, angle):
     """
         Encontra a direção para a qual o sensor laser do robô no ângulo angle aponta
@@ -594,17 +602,24 @@ def nb_lidar(particle, angles, lines = lines, fast=False, occupancy_field=None):
         readings = dict(zip(angles, dists*resolution))
         return readings
     else:
-        origin = (particle.x/resolution, particle.y/resolution)
-        interpoints = closest_intersections(origin, directions, lines)
-        dists = []
-        for p in interpoints:
-            if p is None:
-                dist = float('inf')
-            else:
-                dist = math.sqrt((p[0]-origin[0])**2 + (p[1] - origin[1])**2) * resolution
-            dists.append(dist)
-        readings= dict(zip(angles, dists))
+        origin = np.array([particle.x/resolution, particle.y/resolution], dtype=np.float64)
+        dists = nb_lidar_numpy_pixels(origin, directions, lines)
+        readings= dict(zip(angles, dists * resolution))
         return readings
+
+@njit
+def nb_lidar_numpy_pixels(origin, directions, lines):
+    interpoints = closest_intersections(origin, directions, lines)
+    dists = np.empty(len(interpoints), dtype=np.float64)
+    i = 0
+    for p in interpoints:
+        if p is None:
+            dists[i] = INFTY
+        else:
+            dists[i] = math.sqrt((p[0]-origin[0])**2 + (p[1] - origin[1])**2)
+        i += 1
+    return dists
+
 
 
 @njit
@@ -613,7 +628,7 @@ def closest_intersections(origin, directions, segments):
     Find closest intersection point in each direction.
 
     Args:
-        origin (tuple): x, y coordinates
+        origin (1d numpy array): x, y coordinates
         directions (mx2 numpy array): normalized directions
         segments (nx4 numpy array): segments are represented by (x1, y1, x2, y2),
             where (x1, y1) and (x2, y2) are the end points
@@ -623,7 +638,6 @@ def closest_intersections(origin, directions, segments):
             The element is the closest intersection point in that direction.
             If there is not intersection in that direction, the element is None.
     '''
-    origin = np.array(origin)
     valid, intersections = compute_intersections(origin, directions, segments)
     closest = []
     for i in range(valid.shape[1]):
