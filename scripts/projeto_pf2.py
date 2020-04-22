@@ -85,7 +85,7 @@ def move_particulas(particulas, movimento):
         p.theta += s_th * np.random.normal()
     
 
-def leituras_laser_evidencias(robot, particulas):
+def leituras_laser_evidencias(leitura_robo, particulas):
     """
         Realiza leituras simuladas do laser para o robo e as particulas
         Depois incorpora a evidência calculando
@@ -99,6 +99,8 @@ def leituras_laser_evidencias(robot, particulas):
         
     """
     sigma = 0.01 # m
+    
+    angles = leitura_robo.keys()
     leitura_robo = inspercles.nb_lidar(robot, angles)
     
     for p in particulas :

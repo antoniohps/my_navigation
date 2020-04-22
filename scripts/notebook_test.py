@@ -73,7 +73,8 @@ for delta in movimentos:
     #    leituras = inspercles.nb_lidar(p, projeto_pf.angles)
         
     # Atualiza probabilidade e posicoes
-    projeto_pf2.leituras_laser_evidencias(robot, particulas)
+    leitura_robo = inspercles.nb_lidar(robot, angles)
+    projeto_pf2.leituras_laser_evidencias(leitura_robo, particulas)
     
     # Reamostra as particulas
     particulas = projeto_pf2.reamostrar(particulas)
