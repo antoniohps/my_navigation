@@ -343,18 +343,25 @@ def normalize_particles(particle_cloud):
     for p in particle_cloud:
         p.normalize(w_sum)
 
-def update_robot_pose(particle_cloud, W):
+def update_robot_pose_after_resampling(particles):
     """
-        O objetivo deste item é fornecer uma estimativa da pose do robo
-
-        Pode-se escolher como isto é feito.
-
-        Por exemplo:
-            Usar a média de todas as partículas
-            Usar as partículas mais provaveis
+        O objetivo deste item é fornecer uma estimativa da pose do robo,
+        considerando que os pesos de todas as partículas são iguais
     """
-    robot_pose = [0, 0, 0]
-    return robot_pose
+    x = np.array([p.x for p in particles]).mean()
+    y = np.array([p.y for p in particles]).mean()
+    
+    theta_arr = np.array([p.theta for p in particles])
+    theta = direction_averaging(theta_arr)
+    
+    return Particle(x, y, theta, 1)
+
+@njit
+def direction_averaging(angles):
+    avg_x_component = np.cos(angles).mean()
+    avg_y_component = np.sin(angles).mean()
+    return math.atan2(avg_y_component, avg_x_component)
+
 
 def nb_initialize_particle_cloud(xy_theta=None):
     """ Initialize the particle cloud.
