@@ -49,7 +49,8 @@ class OccupancyGrid(object):
 
     @property
     def color_image(self):
-        return cv2.cvtColor(255 - self.map, cv2.COLOR_GRAY2RGB)
+        ''' Flip image vertically '''
+        return cv2.cvtColor(255 - self.map, cv2.COLOR_GRAY2RGB)[::-1,:,:]
 
 if __name__ == '__main__':
     import cv2

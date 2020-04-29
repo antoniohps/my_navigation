@@ -29,7 +29,7 @@ from projeto_pf2 import angles
 from projeto_pf2 import movimentos
 
 #In[2]
-particulas = projeto_pf2.cria_particulas()
+particulas = projeto_pf2.cria_particulas(-1, -1, 1, 1, 300)
 len(particulas)
 leituras = inspercles.nb_lidar(robot, angles)
 print(leituras)

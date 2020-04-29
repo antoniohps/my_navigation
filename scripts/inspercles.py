@@ -20,7 +20,6 @@ from intersection.segment import Segment
 from map.occupancy_grid import OccupancyGrid
 
 
-
 '''
 initial_pose = []
 
@@ -84,6 +83,7 @@ if lines is None:
 free_thresh = occ_grid._free_thresh
 occupied_thresh = occ_grid._occupied_thresh
 resolution = occ_grid._resolution
+origin = np.array(occ_grid._origin)
 color_image = occ_grid.color_image
 width = occ_grid.width * resolution # meters
 height = occ_grid.height * resolution # meters
@@ -260,16 +260,23 @@ def compute_intersections(pt, directions, segments):
 
     return valid, intersections
 
-
-
-
-
+@njit
 def convert_to_figure(xy_theta):
     """
         Converts a xy_theta to screen coordinates
     """
-    pass
+    x_fig = (xy_theta[0] - origin[0])/resolution
+    y_fig = (xy_theta[1] - origin[1])/resolution
+    return np.array([x_fig, y_fig, xy_theta[2]])
 
+@njit
+def convert_to_image(xy_theta):
+    """
+        Converts a xy_theta to screen coordinates
+    """
+    x_img = (xy_theta[0] - origin[0])/resolution
+    y_img = imheight - (xy_theta[1] - origin[1])/resolution
+    return np.array([x_img, y_img, -xy_theta[2]])
 
 def nb_draw_map(mapa_numpy, particles = None, initial_position=False, pose=False, robot=False):
     """
@@ -294,7 +301,8 @@ def nb_draw_map(mapa_numpy, particles = None, initial_position=False, pose=False
     if particles:
         nb_draw_particle_cloud(particles, ax)
     if pose:
-        nb_draw_arrow(pose[0]/resolution, pose[1]/resolution, pose[2], ax, color='g', width=2, headwidth=6, headlength=6)
+        fig_pose = convert_to_figure(np.array(pose))
+        nb_draw_arrow(fig_pose[0], fig_pose[1], fig_pose[2], ax, color='g', width=2, headwidth=6, headlength=6)
     if robot:
         nb_draw_robot(pose, ax, radius=robot_radius)
 
@@ -332,7 +340,8 @@ def nb_draw_particle_cloud(particles, ax):
         ax - eixo
     """
     for p in particles:
-        nb_draw_arrow(p.x/resolution, p.y/resolution, p.theta, ax, particle_size, color='b')
+        figx, figy, figt = convert_to_figure(np.array((p.x, p.y, p.theta)))
+        nb_draw_arrow(figx, figy, figt, ax, particle_size, color='b')
 
 def normalize_particles(particle_cloud):
     #
@@ -400,10 +409,14 @@ def nb_draw_robot(position, ax, radius=10):
         Desenha um círculo com uma seta para se passar pelo robô
     """
     from matplotlib.patches import Circle
-    circle = Circle((position[0]/resolution, position[1]/resolution), radius, facecolor='none',
+
+    figx, figy, figt = convert_to_figure(np.array((position[0],position[1],0)))
+    circle = Circle((figx, figy), radius, facecolor='none',
                     edgecolor=(0.0, 0.8, 0.2), linewidth=2, alpha=0.7)
     ax.add_patch(circle)
 
+#TODO
+'''
 def nb_create_ros_map(numpy_image):
     """
         Este notebook nao usa o service GetMap, portanto
@@ -425,6 +438,7 @@ def nb_create_ros_map(numpy_image):
     print("Occurences of zero",image_data.count(0))
     grid.data = image_data
     return grid
+'''
 
 @njit
 def nb_interp(min_a, max_a, a, dst_min, dst_max):
@@ -453,6 +467,7 @@ def nb_outside_image(x, y, img):
         return True
     if y >= img.shape[0] or y < 0:
         return True
+    return False
 
 @njit
 def nb_found_obstacle(x, y, x0, y0, img):
@@ -492,13 +507,7 @@ def nb_simulate_lidar(robot_pose, angles, img, retorno = None, output_image=True
 
     """
     a = angles.copy()
-    theta = 2 # para ficar mais intuitivo
-
-    #robot_pose[theta] = angle_normalize(robot_pose[theta])
-
     lidar_results = {}
-
-
     result_img = None
 
     if output_image:
@@ -506,21 +515,15 @@ def nb_simulate_lidar(robot_pose, angles, img, retorno = None, output_image=True
             result_img = np.zeros(img.shape)
         else:
             result_img = retorno
-
         result_img.fill(255) # Deixamos tudo branco
 
-
-    x0 = robot_pose[0]/resolution
-    y0 = robot_pose[1]/resolution
-
+    x0, y0, th0 = convert_to_figure(np.array(robot_pose[:]))    
     # Se o robô simulado (que pode ser uma partícula) já estiver fora da imagem, retornamos zero
     if nb_outside_image(int(x0), int(y0), img):
         for a in angles:
             lidar_results[a] = 0
 
         return lidar_results, result_img
-
-
 
     for angulo in a:
         # Faz o angulo ser relativo ao robo
@@ -606,10 +609,11 @@ def nb_lidar(particle, angles, lines = lines, fast=False, occupancy_field=None):
         sensor_radius = 5
         sensors = (directions * sensor_radius).astype(np.uint8)
         dists = occupancy_field.closest_occ[sensors[:,0], sensors[:,1]]
-        readings = dict(zip(angles, dists*resolution))
+        readings = dict(zip(angles, dists * resolution))
         return readings
     else:
-        origin = np.array([particle.x/resolution, particle.y/resolution], dtype=np.float64)
+        xfig, yfig, tfig = convert_to_figure(np.array(particle[:]))
+        origin = np.array([xfig, yfig], dtype=np.float64)
         dists = nb_lidar_numpy_pixels(origin, directions, lines)
         readings= dict(zip(angles, dists * resolution))
         return readings
@@ -664,17 +668,20 @@ def nb_simulate_lidar_desenha(particle, angles):
         And traces laser results into imagem_saida
     """
     # inefficient, since we're redoing this
-    results = nb_lidar(particle, angles, lines)
+    results = nb_lidar(particle, angles, lines)  
     angles_result = sorted(results.keys())
 
     imagem_saida = np.copy(color_image)
 
+    px_fig, py_fig, pt_fig = convert_to_figure(np.array(particle[:]))
+
     for r in angles_result:
-        cv2.line(imagem_saida, 
-            (int(particle.x/resolution), int(particle.y/resolution)), 
-            (int((particle.x + math.cos(r+particle.theta)*results[r])/resolution), 
-                int((particle.y + math.sin(r+particle.theta)*results[r])/resolution)),
-            (0,0,0),1, lineType=cv2.LINE_AA)
+        if 0. <= results[r] and not math.isinf(results[r]):
+            cv2.line(imagem_saida, 
+                (int(px_fig), int(py_fig)), 
+                (   int(px_fig + math.cos(r+pt_fig)*results[r]/resolution), 
+                    int(py_fig + math.sin(r+pt_fig)*results[r]/resolution)  ),
+                (0,0,0),1, lineType=cv2.LINE_AA)
 
     return results, imagem_saida
 

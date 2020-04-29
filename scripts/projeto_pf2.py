@@ -13,23 +13,26 @@ from pf import Particle, create_particles, draw_random_sample
 
 largura = inspercles.width  # largura do ambiente
 altura = inspercles.height  # altura do ambiente
+origem = inspercles.origin # origem do mapa
 
 # Robo
-robot = Particle(largura/2, altura/2, math.pi/4, 1.0)
+#robot = Particle(0, 0, math.pi/4, 1.0)
+robot = Particle(0, 0, 0, 1.0)
 
 # Nuvem de particulas
-#particulas = []
-
 num_particulas = 800
 
 # Os angulos em que o robo simulado vai ter sensores
-angles = np.linspace(0.0, 2*math.pi, num=8, endpoint=False)
+angles = np.linspace(0.0, 2*math.pi, num=360./8., endpoint=False)
+
+
+# Probabilidade de erro de uma leitura do sensor
+P_ERR = .01
+# Probabilidade de leitura correta "no infinito" 
+P_INFTY = 1. - P_ERR
 
 # Lista de movimentos
-ds = 0.1 #passo básico
-
-P_ERR = 0.01
-P_INFTY = 1 - P_ERR
+ds = .1 #passo básico
 
 movimentos_relativos = [[0, -math.pi/3],[ds, 0],[ds, 0], [ds, 0], [ds, 0],[ds*3/2, 0],[ds*3/2, 0],[ds*3/2, 0],[0, -math.pi/2],[ds, 0],
                        [ds,0], [ds, 0], [ds, 0], [ds, 0], [ds, 0], [ds, 0],
@@ -48,7 +51,7 @@ movimentos_relativos = [[0, -math.pi/3],[ds, 0],[ds, 0], [ds, 0], [ds, 0],[ds*3/
 
 movimentos = movimentos_relativos
 
-def cria_particulas(minx=0, miny=0, maxx=largura, maxy=altura, n_particulas=num_particulas):
+def cria_particulas(minx=origem[0], miny=origem[1], maxx=origem[0] + largura, maxy=origem[1] + altura, n_particulas=num_particulas):
     """
         Cria uma lista de partículas distribuídas de forma uniforme entre minx, miny, maxx e maxy
     """
@@ -57,7 +60,7 @@ def cria_particulas(minx=0, miny=0, maxx=largura, maxy=altura, n_particulas=num_
     th0 = 0
     range_x = (maxx - minx)/2
     range_y = (maxy - miny)/2
-    range_th = math.pi/2
+    range_th = math.pi
 
     return create_particles([x0, y0, th0], range_x, range_y, range_th, num=n_particulas)
     
@@ -98,7 +101,7 @@ def leituras_laser_evidencias(leitura_robo, particulas):
         Você vai precisar calcular para o robo
         
     """
-    sigma = 0.01 # m
+    sigma = 0.1 # m muito alto...
     
     angles = leitura_robo.keys()
     leitura_robo = inspercles.nb_lidar(robot, angles)
@@ -108,7 +111,7 @@ def leituras_laser_evidencias(leitura_robo, particulas):
         
         leitura_estimada = inspercles.nb_lidar(p, angles)
         # Usa a abordagem da soma para evitar números muito pequenos
-        likelihood = 1e-5
+        likelihood = 1e-3
         for angle in leitura_robo:
             z_real = leitura_robo[angle]
             z_estim = leitura_estimada[angle]

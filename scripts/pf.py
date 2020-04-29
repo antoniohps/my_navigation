@@ -84,15 +84,8 @@ class Particle(object):
         """
             Permite que as particulas sejam acessadas como uma lista de 4 valores
         """
-        
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        elif index==2:
-            return self.theta
-        elif index==3:
-            return self.w
+        _list = [self.x, self.y, self.theta, self.w]
+        return _list[index]
                         
     def __setitem__(self, index, value):
         """
@@ -103,11 +96,23 @@ class Particle(object):
             self.x = value
         elif index == 1:
             self.y = value
-        elif index==2:
+        elif index == 2:
             self.theta = value
-        elif index==3:
+        elif index == 3:
             self.w = value
+        elif  isinstance(index, slice):
+            start = 0 if index.start is None else index.start
+            stop = 4 if index.stop is None else index.stop
+            step = 1 if index.step is None else index.step
+            c = 0
+            for i in range(start, stop, step):
+                self.__setitem__(i, value[c])
+                c += 1
             
+            
+        _list = [self.x, self.y, self.theta, self.w]
+        _list[index] = value
+
     def move(self, movimento):
         """
             Desloca a particula recebendo um array de movimento x, y, theta
@@ -149,7 +154,7 @@ def create_particles(pose, var_x = 50, var_y = 50, var_theta = math.pi/3, num=10
     s = pose
     for i in range(num):
         x = np.random.uniform(s[0] - var_x, s[0] + var_x)
-        y = np.random.uniform(s[1] - var_x, s[1] + var_y)
+        y = np.random.uniform(s[1] - var_y, s[1] + var_y)
         theta = np.random.uniform(s[2] - var_theta, s[2] + var_theta)
         p = Particle(x, y, theta, w=1.0) # A prob. w vai ser normalizada depois
         particle_cloud.append(p)
