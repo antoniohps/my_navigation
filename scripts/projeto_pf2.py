@@ -20,7 +20,7 @@ origem = inspercles.origin # origem do mapa
 robot = Particle(0, 0, 0, 1.0)
 
 # Nuvem de particulas
-num_particulas = 800
+num_particulas = 2000
 
 # Os angulos em que o robo simulado vai ter sensores
 angles = np.linspace(0.0, 2*math.pi, num=360./8., endpoint=False)
@@ -55,12 +55,12 @@ def cria_particulas(minx=origem[0], miny=origem[1], maxx=origem[0] + largura, ma
     """
         Cria uma lista de partículas distribuídas de forma uniforme entre minx, miny, maxx e maxy
     """
-    x0 = (minx + maxx)/2
-    y0 = (miny + maxy)/2
+    x0 = 0# (minx + maxx)/2
+    y0 = 0# (miny + maxy)/2
     th0 = 0
-    range_x = (maxx - minx)/2
-    range_y = (maxy - miny)/2
-    range_th = math.pi
+    range_x = 2 #(maxx - minx)/2
+    range_y = 2 # (maxy - miny)/2
+    range_th = math.pi/2 #math.pi
 
     return create_particles([x0, y0, th0], range_x, range_y, range_th, num=n_particulas)
     
@@ -75,8 +75,8 @@ def move_particulas(particulas, movimento):
         Você não precisa mover o robô. O código fornecido pelos professores fará isso
         
     """
-    s_u = 0.1 * movimento[0] + 0.01
-    s_th = 0.1 * movimento[1] + 0.01
+    s_u = 0.2 * movimento[0] + 0.01
+    s_th = 0.2 * movimento[1] + 0.1
     for i in range(len(particulas)):
         p = particulas[i]
         theta = p.theta
@@ -101,10 +101,10 @@ def leituras_laser_evidencias(leitura_robo, particulas):
         Você vai precisar calcular para o robo
         
     """
-    sigma = 0.1 # m muito alto...
+    sigma = 0.01 # m
     
-    angles = leitura_robo.keys()
-    leitura_robo = inspercles.nb_lidar(robot, angles)
+    angles = sorted(leitura_robo.keys())
+    #leitura_robo = inspercles.nb_lidar(robot, angles)
     
     for p in particulas :
         # Voce vai precisar calcular a leitura para cada particula usando inspercles.nb_lidar e depois atualizar as probabilidades
@@ -136,9 +136,9 @@ def reamostrar(particulas, n_particulas = num_particulas):
         
         Use 1/n ou 1, não importa desde que seja a mesma
     """
-    s_x = 0.1 # m
-    s_y = 0.1
-    s_th = 0.3
+    s_x = 0.01 # m
+    s_y = 0.01
+    s_th = 0.03
 
     probs = np.array([p.w for p in particulas])
     probs /= probs.sum()
