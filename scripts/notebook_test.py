@@ -21,6 +21,7 @@ import inspercles
 
 import matplotlib.pyplot as plt
 import os
+import time
 #%matplotlib inline
 
 # In[1]
@@ -52,9 +53,8 @@ plt.ioff() # Desliga o modo interativo, para nao aparecerem muitas imagens no me
 
 frames = 1
 
-
-
 for delta in movimentos:
+    t0 = time.time()
     
     robot.move_relative(delta)
 
@@ -91,5 +91,6 @@ for delta in movimentos:
     frames+=1
     plt.close('all')
 
+    print("Tempo do loop: ", time.time() - t0)
 
 plt.ion()

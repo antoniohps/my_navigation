@@ -602,6 +602,16 @@ def make_directions(particle, angles):
     normed = np.array([(math.cos(a), math.sin(a)) for a in absolute_angles]).reshape((-1, 2))
     return normed
 
+@njit
+def make_directions_numpy(pose, angles):
+    """
+        Returns a list of normalized direction vectors
+        for all the angles of the robot's lasers
+        in map coordinate frame
+    """
+    absolute_angles = pose[2] + angles
+    normed = make_vecs( np.cos(absolute_angles), np.sin(absolute_angles))
+    return normed
 
 def nb_lidar(particle, angles, lines = lines, fast=False, occupancy_field=None):#occupancy_field):
     directions = make_directions(particle, angles)
@@ -617,6 +627,17 @@ def nb_lidar(particle, angles, lines = lines, fast=False, occupancy_field=None):
         dists = nb_lidar_numpy_pixels(origin, directions, lines)
         readings= dict(zip(angles, dists * resolution))
         return readings
+
+@njit
+def nb_lidar_numpy(pose, angles, lines = lines):
+    directions = make_directions_numpy(pose, angles)
+    
+    xfig, yfig, tfig = convert_to_figure(pose)
+    origin = np.array([xfig, yfig], dtype=np.float64)
+    dists = nb_lidar_numpy_pixels(origin, directions, lines)
+    readings= dists * resolution
+    return readings
+
 
 @njit
 def nb_lidar_numpy_pixels(origin, directions, lines):

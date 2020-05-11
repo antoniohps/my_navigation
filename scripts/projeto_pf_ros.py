@@ -120,7 +120,7 @@ if __name__=="__main__":
                 fi_acc = 0
                 
                 t0 = time.time()
-                # È importante executar na prmeira interação, antes do robô 
+                # È importante executar na prmeira interação, antes do robaaaô 
                 # começar a mover-se, pois demora para compilar
                 projeto_pf2.leituras_laser_evidencias(leituras_atuais, particulas)
     
@@ -139,7 +139,7 @@ if __name__=="__main__":
                 publica_particulas(particulas) # para a visualização no rviz
                           
             ros_helper.pubish_robot_pose()
-            rospy.sleep(0.25)
+            rospy.sleep(0.1)
 
     except rospy.ROSInterruptException:
         print("Shutdown requested. Exiting...")

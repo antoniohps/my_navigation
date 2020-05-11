@@ -7,6 +7,7 @@ from __future__ import division, print_function
 
 import numpy as np
 import math
+from numba import njit
 
 import inspercles # necessário para o a função nb_lidar que simula o laser
 from pf import Particle, create_particles, draw_random_sample
@@ -20,7 +21,7 @@ origem = inspercles.origin # origem do mapa
 robot = Particle(0, 0, 0, 1.0)
 
 # Nuvem de particulas
-num_particulas = 2000
+num_particulas = 700
 
 # Os angulos em que o robo simulado vai ter sensores
 angles = np.linspace(0.0, 2*math.pi, num=360./8., endpoint=False)
@@ -103,7 +104,7 @@ def leituras_laser_evidencias(leitura_robo, particulas):
     """
     sigma = 0.01 # m
     
-    angles = sorted(leitura_robo.keys())
+    angles = leitura_robo.keys()
     #leitura_robo = inspercles.nb_lidar(robot, angles)
     
     for p in particulas :
@@ -123,7 +124,60 @@ def leituras_laser_evidencias(leitura_robo, particulas):
                 prob = 1.0/math.sqrt(2*math.pi)/sigma * math.exp(-((z_real-z_estim)**2)/(2*sigma**2))
             likelihood += prob
         p.w = likelihood
+
+def leituras_laser_evidencias2(leitura_robo, particulas):
+    """
+        Realiza leituras simuladas do laser para o robo e as particulas
+        Depois incorpora a evidência calculando
+        P(H|D) para todas as particulas
+        Lembre-se de que a formula $P(z_t | x_t) = \alpha \prod_{j}^M{e^{\frac{-(z_j - \hat{z_j})}{2\sigma^2}}}$ 
+        responde somente P(D|Hi), em que H é a hi
+        
+        Esta função não precisa retornar nada, mas as partículas precisa ter o seu w recalculado. 
+        
+        Você vai precisar calcular para o robo
+        
+    """
+    sigma = 0.01 # m
     
+    angles = np.array(sorted(leitura_robo.keys()))
+    leituras = np.array([leitura_robo[a] for a in angles])
+    poses = np.array([[p.x, p.y, p.theta] for p in particulas])
+    
+    pesos = leituras_laser_evidencias_numpy(poses, angles, leituras)
+
+    i = 0
+    for p in particulas:
+        p.w = pesos[i]
+        i += 1
+    
+@njit
+def leituras_laser_evidencias_numpy(poses, angles, leituras_robo):
+    
+    sigma = 0.01 # m
+    w = np.zeros(len(poses))
+
+    for p in range(len(poses)):
+        # Voce vai precisar calcular a leitura para cada particula usando inspercles.nb_lidar e depois atualizar as probabilidades
+        
+        leitura_estimada = inspercles.nb_lidar_numpy(poses[p], angles)
+        # Usa a abordagem da soma para evitar números muito pequenos
+        likelihood = 1e-3
+        for i in range(len(angles)):
+            z_real = leituras_robo[i]
+            z_estim = leitura_estimada[i]
+            if math.isinf(z_real) and math.isinf(z_estim):
+                prob = P_INFTY
+            elif math.isinf(z_real) or math.isinf(z_estim):
+                prob = P_ERR
+            else: 
+                prob = 1.0/math.sqrt(2*math.pi)/sigma * math.exp(-((z_real-z_estim)**2)/(2*sigma**2))
+            likelihood += prob
+        w[i] = likelihood
+        i += 1
+    return w
+
+
 
 def reamostrar(particulas, n_particulas = num_particulas):
     """
@@ -141,7 +195,8 @@ def reamostrar(particulas, n_particulas = num_particulas):
     s_th = 0.03
 
     probs = np.array([p.w for p in particulas])
-    probs /= probs.sum()
+    #print(probs.shape, probs.dtype(), probs.sum())
+    probs = probs/probs.sum()
     #print(probs)
 
     #novas_particulas_idx = np.random.choice(n_particulas, size=n_particulas, p=probs)
