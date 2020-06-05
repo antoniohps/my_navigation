@@ -7,53 +7,58 @@ import sys
 if (sys.version_info > (3, 0)): 
     # Modo Python 3
     import importlib
-    import projeto_pf2 # Seu trabalho fica em projeto_pf. Você não deveria precisar editar este notebook
-    importlib.reload(projeto_pf2) # Para garantir que o Jupyter sempre relê seu trabalho
+    import projeto_busca # Seu trabalho fica em projeto_busca. Você não deveria precisar editar este notebook
+    importlib.reload(projeto_busca) # Para garantir que o Jupyter sempre relê seu trabalho
 else:
     # Modo Python 2
     reload(sys)
     sys.setdefaultencoding("utf-8")
     import projeto_pf2 # Seu trabalho fica em projeto_pf. Você não deveria precisar editar este notebook
-    reload(projeto_pf2)
+    reload(projeto_pf2) # Para garantir que o Jupyter sempre relê seu trabalho
+
 
 import inspercles
-# import graphics_nb
 
 import matplotlib.pyplot as plt
 import os
 import time
 #%matplotlib inline
 
-# In[1]
-from projeto_pf2 import robot
-from projeto_pf2 import angles
-from projeto_pf2 import movimentos
+from busca_insper import Node
+from projeto_busca import robot
+from projeto_busca import destino
+from projeto_busca import passo
 
-#In[2]
-particulas = projeto_pf2.cria_particulas(-1, -1, 1, 1, 300)
-len(particulas)
-leituras = inspercles.nb_lidar(robot, angles)
-print(leituras)
 
-#In[3]
 # Você não deve se preocupar com o código abaixo - é só para gerar uma imagem que será mostrada mais adiante
-#leituras, inspercles.lidar_map = inspercles.nb_simulate_lidar_fast(projeto_pf.robot.pose(), projeto_pf.angles, inspercles.np_image)
-leituras, lidar_map_temp = inspercles.nb_simulate_lidar_desenha(robot, angles)
-#plt.imshow(lidar_map_temp)
-ax = inspercles.nb_draw_map(lidar_map_temp, robot=True, pose=robot.pose(), particles=particulas)
-#ax.imshow(inspercles.color_image, alpha=0.8)
-plt.show()
+ax = inspercles.nb_draw_map(inspercles.color_image, robot=True, pose=robot, dest=destino)
+#plt.show()
+ax.show()
 
-#In[4]
 ## Atenção: Você não deveria precisar mexer no código abaixo
-## Atenção: Você não deveria precisar mexer no código abaixo
-
 
 plt.ioff() # Desliga o modo interativo, para nao aparecerem muitas imagens no meio por causa da animação
 
+visitados = set()
+fila = []
+
 frames = 1
 
-for delta in movimentos:
+caminho = None
+inicio = (robot[0], robot[1])
+node = Node(inicio, 0, None)
+projeto_busca.insere(inicio)
+visitados.add(inicio)
+while not projeto_busca.vazio():
+    node = projeto_busca.proximo()
+    if node.posicao != destino:
+        node_right = node.right()
+        if node.posicao[0] + 
+
+
+
+    
+    
     t0 = time.time()
     
     robot.move_relative(delta)
@@ -86,7 +91,7 @@ for delta in movimentos:
     # Desenha o mapa do lidar como fundo
     ax.imshow(lidar_saida, alpha=1.0)
     
-    plt.savefig("anim%04d.png"%frames, bounds="tight")
+    plt.savefig("anim/anim%04d.png"%frames, bounds="tight")
     
     frames+=1
     plt.close('all')
@@ -94,3 +99,4 @@ for delta in movimentos:
     print("Tempo do loop: ", time.time() - t0)
 
 plt.ion()
+'''

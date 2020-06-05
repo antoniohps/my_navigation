@@ -265,9 +265,10 @@ def convert_to_figure(xy_theta):
     """
         Converts a xy_theta to screen coordinates
     """
+    theta = xy_theta[2] if len(xy_theta > 2) else .0
     x_fig = (xy_theta[0] - origin[0])/resolution
     y_fig = (xy_theta[1] - origin[1])/resolution
-    return np.array([x_fig, y_fig, xy_theta[2]])
+    return np.array([x_fig, y_fig, theta])[:len(xy_theta)]
 
 @njit
 def convert_to_image(xy_theta):
@@ -278,7 +279,7 @@ def convert_to_image(xy_theta):
     y_img = imheight - (xy_theta[1] - origin[1])/resolution
     return np.array([x_img, y_img, -xy_theta[2]])
 
-def nb_draw_map(mapa_numpy, particles = None, initial_position=False, pose=False, robot=False):
+def nb_draw_map(mapa_numpy, particles = None, initial_position=False, pose=False, robot=False, dest=None):
     """
         particles - um conjunto de partículas definidas como objetos do tipo partícula
 
@@ -305,6 +306,11 @@ def nb_draw_map(mapa_numpy, particles = None, initial_position=False, pose=False
         nb_draw_arrow(fig_pose[0], fig_pose[1], fig_pose[2], ax, color='g', width=2, headwidth=6, headlength=6)
     if robot:
         nb_draw_robot(pose, ax, radius=robot_radius)
+    if dest:
+        fig_dest = convert_to_figure(np.array(dest))
+        nb_draw_cross(fig_dest[0], fig_dest[1], ax)
+
+    ax.imshow(mapa_numpy, alpha=0.8)
 
     return ax # Retornamos o contexto grafico caso queiram fazer algo depois
 
@@ -332,6 +338,15 @@ def nb_draw_arrow(x, y, theta, ax, l = 15, color='y', headwidth=3.0, headlength=
     deltax = l*math.cos(theta)
     deltay = l*math.sin(theta)
     ax.arrow(x, y, deltax, deltay, head_width=headwidth, head_length=headlength, fc=color,  ec=color, width=width)
+
+def nb_draw_cross(x, y, ax, color='red', markersize=20):
+    """
+        Desenha uma seta na posição x, y com um ângulo theta
+        ax é o contexto gráfico
+
+    """
+    ax.plot(x, y, color, marker='x', linestyle='None', markersize=markersize)
+
 
 def nb_draw_particle_cloud(particles, ax):
     """
@@ -460,6 +475,18 @@ def nb_cria_occupancy_field_image(occupancy_field, numpy_image):
             occupancy_image[i][j] = int(nb_interp(min_dist, max_dist, occupancy_field.get_closest_obstacle_distance(j,i), 0, 255))
     return occupancy_image
 
+
+'''
+TODO HERE
+@njit
+def nb_outside_map(x, y, map):
+    figx, figy = con
+    if x >= img.shape[1] or x < 0:
+        return True
+    if y >= img.shape[0] or y < 0:
+        return True
+    return False
+'''
 
 @njit
 def nb_outside_image(x, y, img):
