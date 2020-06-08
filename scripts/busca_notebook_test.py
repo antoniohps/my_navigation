@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 
-# In[0]
-from __future__ import print_function
+from __future__ import division, print_function
 
 import sys
 if (sys.version_info > (3, 0)): 
@@ -16,87 +15,79 @@ else:
     import projeto_pf2 # Seu trabalho fica em projeto_pf. Você não deveria precisar editar este notebook
     reload(projeto_pf2) # Para garantir que o Jupyter sempre relê seu trabalho
 
-
-import inspercles
-
-import matplotlib.pyplot as plt
 import os
 import time
+import cv2
+
+from insper_graph import *
 #%matplotlib inline
 
-from busca_insper import Node
+from busca_insper import map, Node, Model
+
 from projeto_busca import robot
 from projeto_busca import destino
 from projeto_busca import passo
 
-
-# Você não deve se preocupar com o código abaixo - é só para gerar uma imagem que será mostrada mais adiante
-ax = inspercles.nb_draw_map(inspercles.color_image, robot=True, pose=robot, dest=destino)
-#plt.show()
-ax.show()
+#Você não deve se preocupar com o código abaixo - é só para gerar uma imagem que será mostrada mais adiante
+ax = nb_draw_map(map, robot=True, pose=robot, dest=destino)
+plt.show()
+#ax.show()
 
 ## Atenção: Você não deveria precisar mexer no código abaixo
 
 plt.ioff() # Desliga o modo interativo, para nao aparecerem muitas imagens no meio por causa da animação
 
+frames = 0
+skip = 5
+
+# ========== Elementos necessários à busca
+# ----- Modelo do problema sendo resolvido: 
+# ......... proximas_posicoes(atual): retorna as posições possíveis a partir da posição atual
+# ..........termino(posicao): indica se chegamos ao destino (True) ou não (False)
+modelo = Model(map, passo, destino) 
+# ----- Conjunto de posições já visitadas
 visitados = set()
-fila = []
+# ----- Sequencia de posições planejadas a serem percorridas
+caminho = list()
 
-frames = 1
+# ========= Algoritmo de busca no mapa ==========
+pos = (robot[0], robot[1]) # posição inicial
+visitados.add(pos)
+node = Node(pos, 0, None, modelo.heuristica(pos)) # Nó de busca
+projeto_busca.insere_fronteira(node) # projeto busca cpntém a estratégia de busca
+while len(caminho)==0 and len(projeto_busca.fronteira()) > 0 :
+    node = projeto_busca.retira_fronteira()
+    print("Curr node: ", node.posicao)
+    if not modelo.termino(node.posicao):
+        proximas_posicoes = modelo.sucessor(node.posicao)
+        print("Prox. pos: ", proximas_posicoes)
+        for pos in proximas_posicoes:
+            if not pos in visitados:
+                visitados.add(pos)
+                prox_node = Node(pos, modelo.custo(node.posicao, pos), node, modelo.heuristica(pos))
+                projeto_busca.insere_fronteira(prox_node)
+    else:
+        print("Achou destino: ", node.posicao)
+        # Recupera o caminho a partir dos nodes de busca
+        while node is not None:
+            caminho.append(node)
+            node = node.pai
+        caminho = caminho[::-1]
+    
+    # Mostra o mapa de busca
+    if frames % skip == 0 or len(caminho) > 0:
+        img = modelo.gera_imagem(projeto_busca.fronteira(), visitados, caminho)
+        plt.close()
+        ax = nb_draw_map(map, robot=True, pose=robot, dest=destino)
+        nb_overlay(img, map, ax=ax, alpha = 0.3)
+        plt.savefig("anim/anim%04d.png"%frames, bounds="tight")
 
-caminho = None
-inicio = (robot[0], robot[1])
-node = Node(inicio, 0, None)
-projeto_busca.insere(inicio)
-visitados.add(inicio)
-while not projeto_busca.vazio():
-    node = projeto_busca.proximo()
-    if node.posicao != destino:
-        node_right = node.right()
-        if node.posicao[0] + 
-
-
-
+        img = cv2.imread("anim/anim%04d.png"%frames)
+        cv2.imshow("Estado da busca", img)
+        cv2.waitKey(1)
     
-    
-    t0 = time.time()
-    
-    robot.move_relative(delta)
-
-    projeto_pf2.move_particulas(particulas, delta)
-        
-    # Simula a leitura do lidar para o robô - versão desenho
-    #leituras, inspercles.lidar_map = inspercles.nb_simulate_lidar_fast(projeto_pf.robot.pose(), projeto_pf.angles, inspercles.np_image)
-    leituras, lidar_saida = inspercles.nb_simulate_lidar_desenha(robot, angles)
-    
-    # Simula a leitura - versao codigo
-    
-    # Simula o lidar para as particulas
-    # ATENÇÃO: o "for" abaixo faz parte do que deve estar dentro do seu 
-    # leituras_laser_evidencias (parte da resolucao do item 3)
-    #for p in projeto_pf.particulas:
-    #    leituras = inspercles.nb_lidar(p, projeto_pf.angles)
-        
-    # Atualiza probabilidade e posicoes
-    leitura_robo = inspercles.nb_lidar(robot, angles)
-    projeto_pf2.leituras_laser_evidencias(leitura_robo, particulas)
-    
-    # Reamostra as particulas
-    particulas = projeto_pf2.reamostrar(particulas)
-    
-    
-    # Desenha as particulas
-    ax = inspercles.nb_draw_map(lidar_saida, pose=robot.pose(), robot=True, particles=particulas)
-    #ax = inspercles.nb_draw_map(lidar_saida, particles=projeto_pf.particulas)
-    # Desenha o mapa do lidar como fundo
-    ax.imshow(lidar_saida, alpha=1.0)
-    
-    plt.savefig("anim/anim%04d.png"%frames, bounds="tight")
-    
-    frames+=1
-    plt.close('all')
-
-    print("Tempo do loop: ", time.time() - t0)
+    frames += 1
 
 plt.ion()
-'''
+cv2.waitKey()
+cv2.destroyAllWindows()

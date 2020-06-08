@@ -476,18 +476,6 @@ def nb_cria_occupancy_field_image(occupancy_field, numpy_image):
     return occupancy_image
 
 
-'''
-TODO HERE
-@njit
-def nb_outside_map(x, y, map):
-    figx, figy = con
-    if x >= img.shape[1] or x < 0:
-        return True
-    if y >= img.shape[0] or y < 0:
-        return True
-    return False
-'''
-
 @njit
 def nb_outside_image(x, y, img):
     if x >= img.shape[1] or x < 0:
